@@ -75,6 +75,20 @@ public class RESTClient {
         }
     }
 
+    public String deleteBooking(Integer bookingId) throws  UnirestException {
+        HttpResponse<String> response = Unirest.delete(this.URL+"/booking/{BookingID}")
+                .routeParam("BookingID", String.valueOf(bookingId))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("Cookie", "token="+this.token)
+                .asString();
+        if (response.getStatus()==201){
+            return response.getBody();
+        } else {
+            throw  new UnirestException("Status Code: "+response.getStatus());
+        }
+    }
+
     class GsonObjectMapper implements ObjectMapper{
         private  Gson gson = new Gson();
 
