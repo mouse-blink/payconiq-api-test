@@ -5,6 +5,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.request.GetRequest;
 import org.payconiq.models.Booking;
 import org.payconiq.models.BookingResource;
 import org.payconiq.models.Credentials;
@@ -64,6 +65,28 @@ public class RESTClient {
 
     public BookingResource[] getBookingIds() throws UnirestException {
         HttpResponse<BookingResource[]> response = Unirest.get(this.URL + "/booking")
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("Cookie", "token=" + this.token)
+                .asObject(BookingResource[].class);
+        if (response.getStatus() == 200) {
+            return response.getBody();
+        } else {
+            throw new UnirestException("Status Code: " + response.getStatus());
+        }
+    }
+
+    public BookingResource[] getBookingIds(Booking booking) throws UnirestException {
+        GetRequest request = Unirest.get(this.URL + "/booking");
+        if (booking.getFirstname() != null) request.queryString("firstname", booking.getFirstname());
+        if (booking.getLastname() != null) request.queryString("lastname", booking.getLastname());
+        if (booking.getBookingdates() != null) {
+            if (booking.getBookingdates().getCheckin() != null)
+                request.queryString("checkin", booking.getBookingdates().getCheckin());
+            if (booking.getBookingdates().getCheckout() != null)
+                request.queryString("checkout", booking.getBookingdates().getCheckin());
+        }
+        HttpResponse<BookingResource[]> response = request
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("Cookie", "token=" + this.token)
