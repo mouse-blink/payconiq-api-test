@@ -13,6 +13,9 @@ import org.payconiq.models.Dates;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -20,9 +23,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BookingCRUDTest {
     static final Logger log = Logger.getLogger(BookingCRUDTest.class.getName());
-
-    private static RESTClient client;
-
     private static final Booking minimalBooking = Booking.builder()
             .firstname("Bob")
             .lastname("Marley")
@@ -31,6 +31,7 @@ public class BookingCRUDTest {
             .bookingdates(new Dates("1970-01-01", "2038-01-19"))
             .additionalneeds("Parking")
             .build();
+    private static RESTClient client;
 
     @BeforeAll
     static void prepareRESTClient() throws UnirestException {
@@ -41,6 +42,11 @@ public class BookingCRUDTest {
         client.authenticate();
     }
 
+    static List<Integer> getBookingsIdList(BookingResource[] bookingResources) {
+        return Arrays.stream(bookingResources)
+                .map(bookingResource -> bookingResource.getBookingid())
+                .collect(Collectors.toList());
+    }
 
     @Test
     @DisplayName("It is able to crate booking with minimal values")
@@ -63,6 +69,65 @@ public class BookingCRUDTest {
         log.info("Getting Booking by ID : " + bookingResource.getBookingid());
         Booking gottenBooking = client.getBooking(bookingResource.getBookingid());
         BookingAssertions.assetEquals(gottenBooking, minimalBooking);
+    }
+
+    @Test
+    @DisplayName("It should able to get Bookings with specific name")
+    void getBookingsWithName() throws UnirestException {
+        String name = UUID.randomUUID().toString();
+        Booking unique = Booking.builder()
+                .firstname(name)
+                .lastname("Marley")
+                .totalprice(0)
+                .depositpaid(true)
+                .bookingdates(new Dates("1970-01-01", "2038-01-19"))
+                .additionalneeds("Parking")
+                .build();
+        ArrayList<Integer> newBookingIds = new ArrayList<Integer>();
+        BookingResource firstBookingResource = client.createBooking(unique);
+        newBookingIds.add(firstBookingResource.getBookingid());
+        BookingResource secondBookingResource = client.createBooking(unique);
+        newBookingIds.add(secondBookingResource.getBookingid());
+        Collections.sort(newBookingIds);
+        Booking queryBooking = Booking.builder().firstname(name).build();
+        BookingResource[] bookings = client.getBookingIds(queryBooking);
+        assertEquals(bookings.length, 2);
+        List<Integer> receivedIDs = getBookingsIdList(bookings);
+        Collections.sort(receivedIDs);
+        assertEquals(receivedIDs, newBookingIds);
+    }
+
+    @Test
+    @DisplayName("It should able to get Bookings with specific Date")
+    void getBookingsWithDates() throws UnirestException {
+        Dates queryDates = new Dates("1999-09-09", "2012-12-12");
+        Dates searchedDates = new Dates("1999-09-10", "2012-12-13");
+        Dates oldDates = new Dates("1999-09-08", "2012-12-13");
+        Booking queryBooking = Booking.builder().bookingdates(new Dates("1999-09-08", null)).build();
+        List<Integer> initialBookingsIDList = getBookingsIdList(client.getBookingIds(queryBooking));
+        ArrayList<Integer> newBookingIds = new ArrayList<>();
+        Booking queryDatesBooking = Booking.builder()
+                .firstname("Bobby")
+                .lastname("Darin")
+                .totalprice(0)
+                .depositpaid(true)
+                .bookingdates(queryDates)
+                .additionalneeds("Parking")
+                .build();
+        queryDatesBooking.setBookingdates(queryDates);
+        BookingResource firstBookingResource = client.createBooking(queryDatesBooking);
+        newBookingIds.add(firstBookingResource.getBookingid());
+        queryDatesBooking.setBookingdates(searchedDates);
+        BookingResource secondBookingResource = client.createBooking(queryDatesBooking);
+        newBookingIds.add(secondBookingResource.getBookingid());
+        queryDatesBooking.setBookingdates(oldDates);
+        client.createBooking(queryDatesBooking);
+        Collections.sort(newBookingIds);
+        List<Integer> actualBookingsIDList = getBookingsIdList(client.getBookingIds(queryBooking));
+        actualBookingsIDList.removeAll(initialBookingsIDList);
+        assertEquals(actualBookingsIDList.size(), 2);
+        Collections.sort(actualBookingsIDList);
+        assertEquals(actualBookingsIDList, newBookingIds);
     }
 
     @Test
